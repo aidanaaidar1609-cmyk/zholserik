@@ -1,0 +1,4 @@
+[
+  {"route": "Шымкент-Ташкент", "cargo_type": "одежда", "max_kg": 100, "price_min_kzt": 1000, "price_max_kzt": 2000, "days_min": 1, "days_max": 2, "source": "ТЕСТ — заменить ценами от перевозчиков"},
+  {"route": "Шымкент-Ташкент", "cargo_type": "одежда", "max_kg": 500, "price_min_kzt": 3000, "price_max_kzt": 5000, "days_min": 2, "days_max": 3, "source": "ТЕСТ — заменить ценами от перевозчиков"}
+]

@@ -1,0 +1,79 @@
+"""Главный файл сайта. Запуск: streamlit run app.py"""
+import streamlit as st
+
+from ai import parse_request
+from calc import documents, estimate
+from storage import load_requests, save_request
+
+st.set_page_config(page_title="Жолсерік — доставка в Ташкент")
+
+CARGO_TYPES = ["одежда", "продукты", "стройматериалы", "электроника", "другое"]
+
+
+def money(value):
+    return f"{value:,}".replace(",", " ")  # 120000 -> "120 000"
+
+
+st.title("Жолсерік")
+st.caption("Шымкент → Ташкент: цена, срок и документы за 1 минуту")
+
+seller_tab, carrier_tab = st.tabs(["Продавцу", "Перевозчику"])
+
+with seller_tab:
+    # Шаг 1. ИИ понимает обычный текст и заполняет форму
+    text = st.text_input("Опишите груз своими словами", placeholder="300 кг детской одежды в Ташкент")
+    if st.button("Заполнить с помощью ИИ") and text:
+        data = parse_request(text, st.secrets["GEMINI_API_KEY"], st.secrets.get("GEMINI_MODEL", "gemini-2.5-flash"))
+        if data is None:
+            st.warning("ИИ сейчас недоступен. Выберите тип груза и вес вручную.")
+        else:
+            cargo = data.get("cargo_type")
+            st.session_state["cargo"] = cargo if cargo in CARGO_TYPES else "другое"
+            weight_ai = data.get("weight_kg")
+            if isinstance(weight_ai, (int, float)) and weight_ai > 0:  # берём вес, только если это число
+                st.session_state["weight"] = float(weight_ai)
+
+    # Шаг 2. Продавец проверяет форму (или заполняет сам)
+    cargo = st.selectbox("Тип груза", CARGO_TYPES, key="cargo")
+    weight = st.number_input("Вес, кг", min_value=0.0, step=10.0, key="weight")
+
+    if st.button("Рассчитать", type="primary"):
+        if weight <= 0:
+            st.error("Укажите вес груза.")
+        else:
+            st.session_state["result"] = {"cargo": cargo, "weight": weight, "row": estimate(cargo, weight)}
+
+    # Шаг 3. Результат (хранится в session_state, чтобы не пропадал после нажатия других кнопок)
+    result = st.session_state.get("result")
+    if result and result["row"] is None:
+        st.warning("Для такого груза и веса пока нет данных от перевозчиков.")
+    elif result:
+        row = result["row"]
+        st.subheader("Ориентировочно")
+        col1, col2 = st.columns(2)
+        col1.metric("Цена", f"{money(row['price_min_kzt'])}–{money(row['price_max_kzt'])} ₸")
+        col2.metric("Срок", f"{row['days_min']}–{row['days_max']} дн.")
+        st.markdown("**Нужные документы:**")
+        for doc in documents(result["cargo"]):
+            st.markdown(f"- {doc}")
+        st.caption(f"Источник: {row['source']}. Цены ориентировочные.")
+
+        # Шаг 4. Заявка перевозчику
+        contact = st.text_input("Телефон или @telegram, чтобы перевозчик связался с вами")
+        if st.button("Отправить заявку перевозчику"):
+            if not contact:
+                st.error("Укажите контакт.")
+            else:
+                save_request({"cargo": result["cargo"], "weight_kg": result["weight"], "contact": contact})
+                st.success("Заявка отправлена! Перевозчик свяжется с вами.")
+
+with carrier_tab:
+    password = st.text_input("Пароль перевозчика", type="password")
+    if not password or password != st.secrets.get("CARRIER_PASSWORD"):
+        st.info("Введите пароль, чтобы увидеть заявки.")
+    else:
+        items = load_requests()
+        if not items:
+            st.write("Заявок пока нет.")
+        for item in reversed(items):  # новые сверху
+            st.markdown(f"**{item['time']}** — {item['cargo']}, {item['weight_kg']:g} кг, контакт: {item['contact']}")
