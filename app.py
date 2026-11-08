@@ -5,7 +5,11 @@ from ai import parse_request
 from calc import documents, estimate
 from storage import load_requests, save_request
 
-st.set_page_config(page_title="Жолсерік — доставка в Ташкент")
+st.set_page_config(
+    page_title="Жолсерік — доставка в Ташкент", 
+    page_icon="🚚",
+    layout="centered"
+)
 
 CARGO_TYPES = ["одежда", "продукты", "стройматериалы", "электроника", "другое"]
 
@@ -14,15 +18,22 @@ def money(value):
     return f"{value:,}".replace(",", " ")  # 120000 -> "120 000"
 
 
-st.title("Жолсерік")
+# Заголовок и баннер
+st.title("🚚 Жолсерік")
 st.caption("Шымкент → Ташкент: цена, срок и документы за 1 минуту")
 
-seller_tab, carrier_tab = st.tabs(["Продавцу", "Перевозчику"])
+# Красивое тематическое фото
+st.image(
+    "https://pin.it/3rxEimgt7", 
+    use_container_width=True
+)
+
+seller_tab, carrier_tab = st.tabs(["📦 Продавцу", "🚛 Перевозчику"])
 
 with seller_tab:
     # Шаг 1. ИИ понимает обычный текст и заполняет форму
     text = st.text_input("Опишите груз своими словами", placeholder="300 кг детской одежды в Ташкент")
-    if st.button("Заполнить с помощью ИИ") and text:
+    if st.button("✨ Заполнить с помощью ИИ") and text:
         data = parse_request(text, st.secrets["GEMINI_API_KEY"], st.secrets.get("GEMINI_MODEL", "gemini-3.1-flash-lite"))
         if data is None:
             st.warning("ИИ сейчас недоступен. Выберите тип груза и вес вручную.")
@@ -37,12 +48,11 @@ with seller_tab:
     cargo = st.selectbox("Тип груза", CARGO_TYPES, key="cargo")
     weight = st.number_input("Вес, кг", min_value=0.0, step=10.0, key="weight")
 
-    if st.button("Рассчитать", type="primary"):
+    if st.button("🚀 Рассчитать", type="primary"):
         if weight <= 0:
             st.error("Укажите вес груза.")
         else:
             calc_row = estimate(cargo, weight)
-            # Фолбэк, если в calc.py нет данных для текущей категории (например, электроники)
             if calc_row is None:
                 base_price = int(weight * 450)
                 calc_row = {
@@ -58,11 +68,11 @@ with seller_tab:
     result = st.session_state.get("result")
     if result:
         row = result["row"]
-        st.subheader("Ориентировочно")
+        st.subheader("📊 Ориентировочно")
         col1, col2 = st.columns(2)
         col1.metric("Цена", f"{money(row['price_min_kzt'])}–{money(row['price_max_kzt'])} ₸")
         col2.metric("Срок", f"{row['days_min']}–{row['days_max']} дн.")
-        st.markdown("**Нужные документы:**")
+        st.markdown("**📄 Нужные документы:**")
         docs = documents(result["cargo"]) if callable(documents) else ["CMR накладная", "Декларация", "Сертификат"]
         for doc in docs:
             st.markdown(f"- {doc}")
@@ -70,7 +80,7 @@ with seller_tab:
 
         # Шаг 4. Заявка перевозчику
         contact = st.text_input("Телефон или @telegram, чтобы перевозчик связался с вами")
-        if st.button("Отправить заявку перевозчику"):
+        if st.button("📨 Отправить заявку перевозчику"):
             if not contact:
                 st.error("Укажите контакт.")
             else:
@@ -80,7 +90,6 @@ with seller_tab:
 with carrier_tab:
     password = st.text_input("Пароль перевозчика", type="password")
     
-    # Прямая проверка пароля — точно сработает!
     if password == "aidana_true_feminist":
         st.success("Авторизация успешна!")
         items = load_requests()
@@ -88,8 +97,17 @@ with carrier_tab:
             st.write("Заявок пока нет.")
         else:
             for item in reversed(items):
-                st.markdown(f"**{item['time']}** — {item['cargo']}, {item['weight_kg']:g} кг, контакт: {item['contact']}")
+                st.markdown(f"📦 **{item['time']}** — {item['cargo']}, {item['weight_kg']:g} кг | 📱 Контакт: `{item['contact']}`")
     elif password:
         st.error("Неверный пароль")
     else:
         st.info("Введите пароль, чтобы увидеть заявки.")
+
+# Футер
+st.markdown("---")
+st.markdown(
+    "<div style='text-align: center; color: #666; padding: 15px; font-size: 14px;'>"
+    "🚚 <b>Жолсерік</b> • Разработано <b>Айданой</b> специально для хакатона ❤️"
+    "</div>", 
+    unsafe_allow_html=True
+)
