@@ -1,4 +1,5 @@
-"""Главный файл сайта. Запуск: streamlit run app.py"""
+"""Главный файл сайта с поддержкой 3 языков (KZ, UZ, RU) и команды DayOne."""
+
 import pandas as pd
 import streamlit as st
 
@@ -7,47 +8,138 @@ from calc import documents, estimate
 from storage import load_requests, save_request
 
 st.set_page_config(
-    page_title="Жолсерік AI — Трансграничная логистика",
+    page_title="Zholserik AI — Cross-Border Logistics",
     page_icon="🚚",
     layout="centered",
 )
 
 CARGO_TYPES = ["одежда", "продукты", "стройматериалы", "электроника", "другое"]
 
+# --- СЛОВАРЬ ПЕРЕВОДОВ (KZ / UZ / RU) ---
+TRANSLATIONS = {
+    "🇰🇿 Қазақша": {
+        "title": "🚚 Жолсерік AI",
+        "caption": (
+            "Шымкент 🇰🇿 ➔ 🇺🇿 Ташкент шекаралық интеллектуалды логистикалық"
+            " хабы"
+        ),
+        "tab_seller": "📦 Жөнелтушіге (Тапсырыс беруші)",
+        "tab_carrier": "🚛 Тасымалдаушыға (Панель)",
+        "input_label": "Жүгіңізді еркін түрде сипаттаңыз",
+        "input_ph": "Мысалы: Ташкентке 500 кг тұрмыстық техника мен электроника",
+        "ai_btn": "✨ AI арқылы тану",
+        "category": "Жүк санаты",
+        "weight": "Жүк салмағы (кг)",
+        "calc_btn": "🚀 Маршрут пен құнын есептеу",
+        "metrics_price": "Жеткізу құны",
+        "metrics_time": "Жеткізу мерзімі",
+        "metrics_route": "Маршрут",
+        "customs_title": "🛃 Кедендік мәртебе мен ұсыныстар:",
+        "docs_title": "📄 Ілеспе құжаттар топтамасы:",
+        "map_title": "📍 Маршрутты гео-визуализациялау:",
+        "send_title": "📨 Тасымалдаушыларға өтінім беру",
+        "contact_label": "Байланыс телефоны немесе Telegram",
+        "send_btn": "Өтінімді логистикалық хабқа жіберу",
+        "carrier_auth": "🔐 Аккредиттелген тасымалдаушылар үшін кіру",
+        "pass_label": "Құпия сөзді енгізіңіз",
+        "take_order": "Тапсырысты қабылдау",
+    },
+    "🇺🇿 Oʻzbekcha": {
+        "title": "🚚 Zholserik AI",
+        "caption": (
+            "Chimkent 🇰🇿 ➔ 🇺🇿 Toshkent chegaralararo intellektual logistika"
+            " xabi"
+        ),
+        "tab_seller": "📦 Yuboruvchiga (Buyurtmachi)",
+        "tab_carrier": "🚛 Tashuvchiga (Panel)",
+        "input_label": "Yukingizni erkin shaklda tasvirlang",
+        "input_ph": (
+            "Masalan: Toshkentga 500 kg maishiy texnika va elektronika"
+        ),
+        "ai_btn": "✨ AI orqali aniqlash",
+        "category": "Yuk toifasi",
+        "weight": "Yuk vazni (kg)",
+        "calc_btn": "🚀 Yo'nalish va narxni hisoblash",
+        "metrics_price": "Etkazib berish narxi",
+        "metrics_time": "Etkazib berish muddati",
+        "metrics_route": "Yo'nalish",
+        "customs_title": "🛃 Bojxona maqomi va tavsiyalar:",
+        "docs_title": "📄 Hamrohlik hujjatlari toplami:",
+        "map_title": "📍 Yo'nalishni geo-vizuallashtirish:",
+        "send_title": "📨 Tashuvchilarga ariza yuborish",
+        "contact_label": "Aloqa telefoni yoki Telegram",
+        "send_btn": "Arizani logistika xabiga yuborish",
+        "carrier_auth": "🔐 Akkreditatsiyalangan tashuvchilar uchun kirish",
+        "pass_label": "Parolni kiriting",
+        "take_order": "Buyurtmani qabul qilish",
+    },
+    "🇷🇺 Русский": {
+        "title": "🚚 Жолсерік AI",
+        "caption": (
+            "Умный логистический коридор Шымкент 🇰🇿 ➔ 🇺🇿 Ташкент: расчет"
+            " тарифов, таможни и подбор машин"
+        ),
+        "tab_seller": "📦 Продавцу (Заказчику)",
+        "tab_carrier": "🚛 Перевозчику (Панель)",
+        "input_label": "Опишите ваш груз в свободной форме",
+        "input_ph": (
+            "Например: 500 кг бытовой техники и электроники в Ташкент"
+        ),
+        "ai_btn": "✨ Распознать через ИИ",
+        "category": "Категория груза",
+        "weight": "Вес груза (кг)",
+        "calc_btn": "🚀 Рассчитать маршрут и стоимость",
+        "metrics_price": "Стоимость",
+        "metrics_time": "Срок доставки",
+        "metrics_route": "Маршрут",
+        "customs_title": "🛃 Таможенный статус и рекомендации:",
+        "docs_title": "📄 Пакет сопроводительных документов:",
+        "map_title": "📍 Гео-визуализация маршрута:",
+        "send_title": "📨 Подать заявку перевозчикам",
+        "contact_label": "Ваш телефон или Telegram для связи",
+        "send_btn": "Передать заявку в логистический хаб",
+        "carrier_auth": "🔐 Вход для аккредитованных перевозчиков",
+        "pass_label": "Введите пароль доступа",
+        "take_order": "Принять заказ",
+    },
+}
+
 
 def money(value):
     return f"{value:,}".replace(",", " ")
 
 
-# --- ШАПКА И БЕНДИНГ ---
-st.title("🚚 Жолсерік AI")
-st.caption(
-    "Умный логистический коридор **Шымкент 🇰🇿 ➔ 🇺🇿 Ташкент**: расчет тарифов, таможни и подбор машин"
+# --- ВЫБОР ЯЗЫКА ---
+lang_choice = st.sidebar.selectbox(
+    "🌐 Тіл / Tillar / Язык",
+    ["🇰🇿 Қазақша", "🇺🇿 Oʻzbekcha", "🇷🇺 Русский"],
+    index=2,
 )
+t = TRANSLATIONS[lang_choice]
+
+# --- ШАПКА И БАННЕР ---
+st.title(t["title"])
+st.caption(t["caption"])
 
 # Баннер
 st.image("my_banner.png", use_container_width=True)
 
-seller_tab, carrier_tab = st.tabs(
-    ["📦 Продавцу (Заказчику)", "🚛 Перевозчику (Панель)"]
-)
+seller_tab, carrier_tab = st.tabs([t["tab_seller"], t["tab_carrier"]])
 
 with seller_tab:
-    st.subheader("1. Расчет доставки и таможни")
-
     # Шаг 1. ИИ парсер
     text = st.text_input(
-        "Опишите ваш груз в свободной форме",
-        placeholder="Например: 500 кг бытовой техники и электроники в Ташкент",
+        t["input_label"],
+        placeholder=t["input_ph"],
     )
-    if st.button("✨ Распознать через ИИ") and text:
+    if st.button(t["ai_btn"]) and text:
         data = parse_request(
             text,
             st.secrets["GEMINI_API_KEY"],
             st.secrets.get("GEMINI_MODEL", "gemini-3.1-flash-lite"),
         )
         if data is None:
-            st.warning("ИИ сейчас недоступен. Заполните параметры вручную.")
+            st.warning("AI временно недоступен.")
         else:
             cargo = data.get("cargo_type")
             st.session_state["cargo"] = (
@@ -56,20 +148,20 @@ with seller_tab:
             weight_ai = data.get("weight_kg")
             if isinstance(weight_ai, (int, float)) and weight_ai > 0:
                 st.session_state["weight"] = float(weight_ai)
-            st.success("ИИ успешно распознал данные груза!")
+            st.success("✅ AI success!")
 
     # Шаг 2. Форма
     col_a, col_b = st.columns(2)
     with col_a:
-        cargo = st.selectbox("Категория груза", CARGO_TYPES, key="cargo")
+        cargo = st.selectbox(t["category"], CARGO_TYPES, key="cargo")
     with col_b:
         weight = st.number_input(
-            "Вес груза (кг)", min_value=0.0, step=10.0, key="weight"
+            t["weight"], min_value=0.0, step=10.0, key="weight"
         )
 
-    if st.button("🚀 Рассчитать маршрут и стоимость", type="primary"):
+    if st.button(t["calc_btn"], type="primary"):
         if weight <= 0:
-            st.error("Укажите корректный вес груза.")
+            st.error("Укажите вес.")
         else:
             calc_row = estimate(cargo, weight)
             if calc_row is None:
@@ -79,7 +171,7 @@ with seller_tab:
                     "price_max_kzt": int(base_price * 1.25),
                     "days_min": 1,
                     "days_max": 3,
-                    "source": "Базовый тариф Жолсерік",
+                    "source": "Базовый тариф Zholserik",
                 }
             st.session_state["result"] = {
                 "cargo": cargo,
@@ -92,38 +184,37 @@ with seller_tab:
     if result:
         row = result["row"]
         st.markdown("---")
-        st.subheader("📊 Расчёт стоимости и сроков")
 
         m1, m2, m3 = st.columns(3)
         m1.metric(
-            "Стоимость",
+            t["metrics_price"],
             f"{money(row['price_min_kzt'])}–{money(row['price_max_kzt'])} ₸",
         )
-        m2.metric("Срок доставки", f"{row['days_min']}–{row['days_max']} дн.")
+        m2.metric(t["metrics_time"], f"{row['days_min']}–{row['days_max']} дн.")
         m3.metric(
-            "Маршрут",
+            t["metrics_route"],
             "125 км (Жибек Жолы)",
             delta="Пункт пропуска",
             delta_color="normal",
         )
 
         # Таможенный блок
-        st.markdown("🛃 **Таможенный статус и рекомендации:**")
+        st.markdown(t["customs_title"])
         if result["cargo"] == "электроника":
             st.info(
-                "⚠️ **Требуется:** Нотификация РУз и сертификат соответствия ЕАЭС."
+                "⚠️ **Талап / Talab:** Нотификация РУз & Сертификат ЕАЭС."
             )
         elif result["cargo"] == "продукты":
             st.warning(
-                "🌡️ **Режим:** Требуется рефрижератор и фитосанитарный контроль."
+                "🌡️ **Режим:** Рефрижератор & Фитосанитарный контроль."
             )
         else:
             st.success(
-                "✅ **Зеленый коридор:** Упрощенное декларирование для коммерческих грузов."
+                "✅ **Зеленый коридор / Yaşıl koridor:** Упрощенный порядок."
             )
 
         # Документы
-        st.markdown("**📄 Пакет сопроводительных документов:**")
+        st.markdown(t["docs_title"])
         docs = (
             documents(result["cargo"])
             if callable(documents)
@@ -131,12 +222,9 @@ with seller_tab:
         )
         for doc in docs:
             st.markdown(f"- {doc}")
-        st.caption(
-            f"Источник тарифа: {row.get('source', 'Партнерская сеть MG Logistics')}."
-        )
 
         # Интерактивная карта
-        st.markdown("📍 **Гео-визуализация маршрута:**")
+        st.markdown(t["map_title"])
         map_df = pd.DataFrame(
             {
                 "lat": [42.3417, 41.2995],
@@ -147,14 +235,14 @@ with seller_tab:
 
         # Шаг 4. Отправка заявки
         st.markdown("---")
-        st.subheader("📨 Подать заявку перевозчикам")
+        st.subheader(t["send_title"])
         contact = st.text_input(
-            "Ваш телефон или Telegram для связи",
-            placeholder="+7 707 ... или @username",
+            t["contact_label"],
+            placeholder="+7 707 ... / +998 90 ...",
         )
-        if st.button("Передать заявку в логистический хаб"):
+        if st.button(t["send_btn"]):
             if not contact:
-                st.error("Пожалуйста, укажите контактные данные.")
+                st.error("Укажите контакт.")
             else:
                 save_request(
                     {
@@ -164,42 +252,40 @@ with seller_tab:
                         "status": "Новая",
                     }
                 )
-                st.success(
-                    "🎉 Заявка размещена! Перевозчики в Ташкент уже видят ваш запрос."
-                )
+                st.success("🎉 Заявка отправлена / Ariza yuborildi!")
 
 with carrier_tab:
-    st.subheader("🔐 Вход для аккредитованных перевозчиков")
-    password = st.text_input("Введите пароль доступа", type="password")
+    st.subheader(t["carrier_auth"])
+    password = st.text_input(t["pass_label"], type="password")
 
     if password == "aidana_true_feminist":
-        st.success("Доступ разрешен. Активные заявки направления Шымкент–Ташкент:")
+        st.success("Доступ разрешен / Kirishga ruxsat berildi:")
         items = load_requests()
         if not items:
-            st.info("В данный момент нет необработанных заявок.")
+            st.info("Нет необработанных заявок.")
         else:
             for idx, item in enumerate(reversed(items)):
                 status = item.get("status", "Новая")
                 with st.expander(
-                    f"📦 Заявка #{len(items)-idx}: {item['cargo'].upper()} — {item['weight_kg']:g} кг ({status})"
+                    f"📦 Заявка #{len(items)-idx}: {item['cargo'].upper()} —"
+                    f" {item['weight_kg']:g} кг ({status})"
                 ):
-                    st.write(f"⏱ **Время:** {item.get('time', 'Только что')}")
-                    st.write(f"📞 **Контакт клиента:** `{item['contact']}`")
+                    st.write(f"📞 **Контакт:** `{item['contact']}`")
                     st.write(f"📌 **Статус:** {status}")
-                    if st.button(f"Принять заказ #{len(items)-idx}", key=f"btn_{idx}"):
+                    if st.button(
+                        f"{t['take_order']} #{len(items)-idx}", key=f"btn_{idx}"
+                    ):
                         st.balloons()
-                        st.success("Вы взяли заказ в работу! Свяжитесь с клиентом.")
+                        st.success("Заказ принят в работу!")
     elif password:
-        st.error("Ошибка авторизации. Неверный пароль.")
-    else:
-        st.info("Внимание: Панель предназначена только для проверенных водителей и ТК.")
+        st.error("Неверный пароль.")
 
 # --- ФУТЕР ---
 st.markdown("---")
 st.markdown(
-    "<div style='text-align: center; color: #777; padding: 15px; font-size: 13px;'>"
-    "🚀 <b>Жолсерік AI</b> • Платформа трансграничной логистики<br>"
-    "Разработано <b>Айданой</b> специально для хакатона 2026 ❤️"
-    "</div>",
+    "<div style='text-align: center; color: #777; padding: 15px; font-size:"
+    " 13px;'>🚀 <b>Zholserik AI</b> • Shymkent–Tashkent Cross-Border AI"
+    " Platform<br>Разработано командой <b>DayOne</b> специально для хакатона"
+    " 2026 ❤️</div>",
     unsafe_allow_html=True,
 )
