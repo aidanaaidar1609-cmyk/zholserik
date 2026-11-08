@@ -23,10 +23,7 @@ st.title("🚚 Жолсерік")
 st.caption("Шымкент → Ташкент: цена, срок и документы за 1 минуту")
 
 # Красивое тематическое фото
-st.image(
-    "https://pin.it/3rxEimgt7", 
-    use_container_width=True
-)
+st.image("banner.png", use_container_width=True)
 
 seller_tab, carrier_tab = st.tabs(["📦 Продавцу", "🚛 Перевозчику"])
 
